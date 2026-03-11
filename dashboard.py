@@ -44,6 +44,13 @@ st.markdown(
     padding: 20px;
     border-radius: 12px;
     border: 1px solid #1f2937;
+    color: white !important;  /* <-- make text white */
+}
+.stMetric span[data-testid="stMetricValue"] {
+    color: white !important;  /* <-- specifically for metric values */
+}
+.stMetric div[data-testid="stMetricDelta"] {
+    color: white !important;  /* <-- for delta text if used */
 }
 .block-container {
     padding-top: 2rem;
