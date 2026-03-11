@@ -9,23 +9,27 @@ The system integrates **OpenCV, Deep Learning-based face recognition, Firebase F
 ## 🚀 Features
 
 ### 🎥 Real-Time Meeting Employee Count with Face Recognition
-* Detects and recognizes employee faces from a **live camera feed**
-* Uses **face embeddings with deep learning**
-* Displays recognized names in the camera preview
+
+- Detects and recognizes employee faces from a **live camera feed**
+- Uses **face embeddings with deep learning**
+- Displays recognized names in the camera preview
 
 ### 📊 Smart Meeting Record Dashboard
-* Built with **Streamlit**
-* Real-time employee counting updates
-* No page refresh required
+
+- Built with **Streamlit**
+- Real-time employee counting updates
+- No page refresh required
 
 ### ⏱ Meeting Control
-* Create meeting sessions with:
-  * Meeting code
-  * Meeting duration
-  * Late entry allowance
-  * Selected employee
+
+- Create meeting sessions with:
+  - Meeting code
+  - Meeting duration
+  - Late entry allowance
+  - Selected employee
 
 ### 🟢 Automatic Status Detection
+
 Employees are marked automatically as:
 
 | Status  | Condition                     |
@@ -35,30 +39,35 @@ Employees are marked automatically as:
 | Absent  | Not detected during meeting   |
 
 ### ☁️ Firebase Cloud Storage
+
 Meeting Record is stored in **Google Firebase Firestore**.
 
 ### 📁 CSV Report Export
+
 After the meeting ends, the system automatically generates:
 `meeting_YYYY-MM-DD_MEETINGCODE.csv`
 
 ### 🛑 Meeting Control
-* Start meeting
-* Stop meeting manually
-* Auto save Meeting data
+
+- Start meeting
+- Stop meeting manually
+- Auto save Meeting data
 
 ### 📈 Live Meeting Record Analytics
+
 Dashboard shows:
-* Total Employees
-* Present count
-* Late count
-* Live table updates
+
+- Total Employees
+- Present count
+- Late count
+- Live table updates
 
 ---
 
 # 🛠 Technologies Used
 
 | Technology         | Purpose                         |
-|--------------------|----------------------------------|
+| ------------------ | ------------------------------- |
 | Python             | Core programming language       |
 | OpenCV             | Camera capture & face detection |
 | face_recognition   | Deep learning face recognition  |
@@ -66,6 +75,40 @@ Dashboard shows:
 | Firebase Firestore | Cloud database                  |
 | Pandas             | Data processing                 |
 | Pickle             | Store face encodings            |
+
+---
+
+# 🤖 System Workflow ⚙️🦾
+
+### This is the System Workflow of this Project
+
+```
+Employee Registration
+        │
+        ▼
+Dataset Collection (OpenCV)
+        │
+        ▼
+Face Embedding Training (Deep learning face embeddings)
+        │
+        ▼
+encodings.pickle
+        │
+        ▼
+Real-time Recognition
+(OpenCV + Face Recognition)
+        │
+        ▼
+Meeting Employee Count Logic
+        │
+        ▼
+Firebase Firestore
+        │
+        ▼
+    CSV Report
+```
+
+---
 
 ---
 
@@ -127,9 +170,27 @@ firebase-admin
 pandas
 numpy
 ```
+
 # Install requirements.txt
+
 ```bash
 pip install -r requirements.txt
+```
+
+```bash
+python scripts/enroll_student.py
+```
+
+```bash
+python scripts/train_model.py
+```
+
+```bash
+python main_app.py
+```
+
+```bash
+streamlit run dashboard.py
 ```
 
 # 🔥 Firebase Setup
@@ -140,21 +201,27 @@ https://console.firebase.google.com
 ### Create a New Project
 
 Enable:
+
 ```
 Firestore Database
 ```
+
 ### Create Service Account Key
 
 Download:
+
 ```
 serviceAccountKey.json
 ```
+
 Place it inside:
+
 ```
 firebase/serviceAccountKey.json
 ```
 
 # 📊 Firestore Database Structure
+
 ```
 attendance
    │
