@@ -8,15 +8,13 @@ import face_recognition
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-# Firebase
 cred = credentials.Certificate("firebase/serviceAccountKey.json")
 firebase_admin.initialize_app(cred)
+
 db = firestore.client()
 
-# Load model
 data = pickle.loads(open("data/encodings.pickle", "rb").read())
 
-# Load meeting config
 with open("meeting_config.json") as f:
     config = json.load(f)
 
@@ -37,11 +35,11 @@ late_deadline = start_time + timedelta(minutes=late_minutes)
 
 session_id = datetime.now().strftime("%Y-%m-%d") + "_" + course
 
-# Attendance structure
 attendance = {}
 
 for s in students:
-    sid, name = s.split("_")
+    sid, name = s.split("_", 1)
+
     attendance[sid] = {
         "name": name,
         "status": "Absent",
@@ -51,7 +49,7 @@ for s in students:
 
 def mark_attendance(student_info):
 
-    sid, name = student_info.split("_")
+    sid, name = student_info.split("_", 1)
 
     if sid not in attendance:
         return
@@ -145,8 +143,6 @@ while True:
 video_capture.release()
 cv2.destroyAllWindows()
 
-
-# Export CSV
 csv_file = f"attendance_{session_id}.csv"
 
 with open(csv_file, "w", newline="") as f:
