@@ -194,7 +194,7 @@ streamlit run dashboard.py
 ```
 
 ```bash
-cloudflare tunnel --url http://localhost:8501
+cloudflared tunnel --url http://localhost:8501
 ```
 
 # 🔥 Firebase Setup
