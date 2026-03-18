@@ -4,7 +4,7 @@ A **real-time employee count in a meeting** that uses **face recognition** to au
 
 The system integrates **OpenCV, Deep Learning-based face recognition, Firebase Firestore, and Streamlit** to provide a **live dashboard with camera preview, real-time employee tracking, and automated CSV report generation**.
 
----
+## ![Smart Meeting Room Banner](https://cdn.prod.website-files.com/66fe188853419b48e8fe3154/6705f904b2deb8870cea03e5_multi-camera-solutions-logitech-1.webp)
 
 ## 🚀 Features
 
