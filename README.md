@@ -249,3 +249,16 @@ attendance
 
 Computer Science & Engineering
 AI & Computer Vision Enthusiast
+
+<!-- kabir  -->
+
+{'ok': True, 'result': [{'update_id': 299137529, 'message': {'message_id': 2, 'from': {'id': 5381446567, 'is_bot': False, 'first_name': 'Md. Mashrur', 'last_name': 'Kabir', 'language_code': 'en'}, 'chat': {'id': 5381446567, 'first_name': 'Md. Mashrur', 'last_name': 'Kabir', 'type': 'private'}, 'date': 1775636582, 'text': '/start', 'entities': [{'offset': 0, 'length': 6, 'type': 'bot_command'}]}}]}
+
+<!-- saima -->
+
+{'ok': True, 'result': [{'update_id': 299137529, 'message': {'message_id': 2, 'from': {'id': 5381446567, 'is_bot': False, 'first_name': 'Md. Mashrur', 'last_name': 'Kabir', 'language_code': 'en'}, 'chat': {'id': 5381446567, 'first_name': 'Md. Mashrur', 'last_name': 'Kabir', 'type': 'private'}, 'date': 1775636582, 'text': '/start', 'entities': [{'offset': 0, 'length': 6, 'type': 'bot_command'}]}}, {'update_id': 299137530, 'message': {'message_id': 3, 'from': {'id': 6354552421, 'is_bot': False, 'first_name': 'Saima', 'last_name': 'Jahan', 'language_code': 'en'}, 'chat': {'id': 6354552421, 'first_name': 'Saima', 'last_name': 'Jahan', 'type': 'private'}, 'date': 1775636666, 'text': '/start', 'entities': [{'offset': 0, 'length': 6, 'type': 'bot_command'}]}}]}
+
+<!-- maisha -->
+
+:/10th Semester/IoT and Data Analytics Lab/Smart_Meeting_Room_Deep_learning/get_chat_id.py"
+{'ok': True, 'result': [{'update_id': 299137529, 'message': {'message_id': 2, 'from': {'id': 5381446567, 'is_bot': False, 'first_name': 'Md. Mashrur', 'last_name': 'Kabir', 'language_code': 'en'}, 'chat': {'id': 5381446567, 'first_name': 'Md. Mashrur', 'last_name': 'Kabir', 'type': 'private'}, 'date': 1775636582, 'text': '/start', 'entities': [{'offset': 0, 'length': 6, 'type': 'bot_command'}]}}, {'update_id': 299137530, 'message': {'message_id': 3, 'from': {'id': 6354552421, 'is_bot': False, 'first_name': 'Saima', 'last_name': 'Jahan', 'language_code': 'en'}, 'chat': {'id': 6354552421, 'first_name': 'Saima', 'last_name': 'Jahan', 'type': 'private'}, 'date': 1775636666, 'text': '/start', 'entities': [{'offset': 0, 'length': 6, 'type': 'bot_command'}]}}, {'update_id': 299137531, 'message': {'message_id': 4, 'from': {'id': 5146855634, 'is_bot': False, 'first_name': 'Maisha', 'last_name': 'Rahman', 'language_code': 'en'}, 'chat': {'id': 5146855634, 'first_name': 'Maisha', 'last_name': 'Rahman', 'type': 'private'}, 'date': 1775637365, 'text': '/start', 'entities': [{'offset': 0, 'length': 6, 'type': 'bot_command'}]}}]}
