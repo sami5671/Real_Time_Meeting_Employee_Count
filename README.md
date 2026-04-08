@@ -1,6 +1,6 @@
 # 🎓 A real-time employee count in a meeting
 
-A **real-time employee count in a meeting** that uses **face recognition** to automatically detect and record employee during a meeting or seesion.
+A **real-time employee count in a meeting** that uses **face recognition** to automatically detect and record employee during a meeting or seesion if anyone is late real-time message will sent to the correspondent employee.
 
 The system integrates **OpenCV, Deep Learning-based face recognition, Firebase Firestore, and Streamlit** to provide a **live dashboard with camera preview, real-time employee tracking, and automated CSV report generation**.
 
