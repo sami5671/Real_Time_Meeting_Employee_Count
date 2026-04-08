@@ -1,4 +1,3 @@
-import csv
 import os
 import pickle
 import time
@@ -8,9 +7,36 @@ import cv2
 import face_recognition
 import firebase_admin
 import pandas as pd
+import requests
 import streamlit as st
 from firebase_admin import credentials, firestore, initialize_app
-import matplotlib.pyplot as plt
+
+# ------------------------------
+# Telegram Config
+# ------------------------------
+TOKEN = "8600372885:AAH9MaxJx1xYhcZfRWDKFsbHKRUkOAfJaM8"
+
+
+def send_telegram_message(chat_id, message):
+    """Send a Telegram message. Returns True on success, False on failure."""
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    try:
+        res = requests.post(
+            url,
+            data={"chat_id": str(chat_id), "text": message, "parse_mode": "Markdown"},
+            timeout=10,
+        )
+        result = res.json()
+        if result.get("ok"):
+            print(f"✅ Telegram sent to {chat_id}")
+            return True
+        else:
+            print(f"❌ Telegram failed for {chat_id}: {result}")
+            return False
+    except Exception as e:
+        print(f"❌ Telegram Exception for {chat_id}: {e}")
+        return False
+
 
 # ------------------------------
 # Firebase Init
@@ -22,288 +48,321 @@ if not firebase_admin._apps:
 db = firestore.client()
 
 # ------------------------------
-# Page Config
+# Streamlit Setup
 # ------------------------------
-st.set_page_config(
-    page_title="Smart Attendance",
-    page_icon="🎓",
-    layout="wide",
-)
-
-# ------------------------------
-# Custom SaaS Styling
-# ------------------------------
-st.markdown(
-    """
-<style>
-.main {
-    background-color: #0f172a;
-}
-.stMetric {
-    background: #111827;
-    padding: 20px;
-    border-radius: 12px;
-    border: 1px solid #1f2937;
-    color: white !important;  /* <-- make text white */
-}
-.stMetric span[data-testid="stMetricValue"] {
-    color: white !important;  /* <-- specifically for metric values */
-}
-.stMetric div[data-testid="stMetricDelta"] {
-    color: white !important;  /* <-- for delta text if used */
-}
-.block-container {
-    padding-top: 2rem;
-}
-h1, h2, h3 {
-    color: white;
-}
-</style>
-""",
-    unsafe_allow_html=True,
-)
-
+st.set_page_config(page_title="Smart Attendance", layout="wide")
 st.title("🎓 Smart Face Attendance System")
+
 
 # ------------------------------
 # Load Encodings
 # ------------------------------
-data = pickle.loads(open("data/encodings.pickle", "rb").read())
+@st.cache_resource
+def load_encodings():
+    with open("data/encodings.pickle", "rb") as f:
+        return pickle.load(f)
+
+
+data = load_encodings()
+
 DATASET_PATH = "data/dataset"
-
-students_list = []
-if os.path.exists(DATASET_PATH):
-    students_list = os.listdir(DATASET_PATH)
+students_list = os.listdir(DATASET_PATH) if os.path.exists(DATASET_PATH) else []
 
 # ------------------------------
-# Session State
+# Session State Defaults
 # ------------------------------
-if "running" not in st.session_state:
-    st.session_state.running = False
-
-if "attendance" not in st.session_state:
-    st.session_state.attendance = {}
-
-if "cap" not in st.session_state:
-    st.session_state.cap = None
-
-if "session_id" not in st.session_state:
-    st.session_state.session_id = ""
-
-if "view_history" not in st.session_state:
-    st.session_state.view_history = False
+defaults = {
+    "running": False,
+    "attendance": {},
+    "cap": None,
+    "start_time": None,
+    "late_deadline": None,
+    "session_id": None,
+}
+for key, val in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = val
 
 # ------------------------------
-# Sidebar (Meeting Setup)
+# Sidebar
 # ------------------------------
-st.sidebar.title("⚙️ Meeting Control")
-
+st.sidebar.title("⚙️ Control Panel")
 course_code = st.sidebar.text_input("Course Code", "CSE401")
-duration = st.sidebar.number_input("Meeting Duration (minutes)", min_value=1, value=10)
-late_minutes = st.sidebar.number_input("Late Entry Allowed (minutes)", min_value=0, value=5)
-
+late_minutes = st.sidebar.number_input("Late Allow (min)", 0, 60, 2)
 selected_students = st.sidebar.multiselect("Select Students", students_list)
 
-start = st.sidebar.button("🚀 Start Meeting")
-stop = st.sidebar.button("🛑 Stop Meeting")
-history_btn = st.sidebar.button("📊 Previous Meetings")
-
-if history_btn:
-    st.session_state.view_history = True
-    st.session_state.running = False
-    if st.session_state.cap:
-        st.session_state.cap.release()
-        st.session_state.cap = None
+start = st.sidebar.button("🚀 Start Session")
+stop = st.sidebar.button("🛑 Stop Session")
 
 # ------------------------------
-# Start Meeting
+# Attendance Marker
 # ------------------------------
-if start:
-    st.session_state.running = True
-    st.session_state.view_history = False
-
-    st.session_state.start_time = datetime.now()
-    st.session_state.end_time = datetime.now() + timedelta(minutes=duration)
-    st.session_state.late_deadline = datetime.now() + timedelta(minutes=late_minutes)
-    st.session_state.session_id = datetime.now().strftime("%Y-%m-%d") + "_" + course_code
-
-    attendance = {}
-    for s in selected_students:
-        sid, name = s.split("_", 1)
-        attendance[sid] = {"name": name, "status": "Absent", "time": ""}
-    st.session_state.attendance = attendance
-    st.session_state.cap = cv2.VideoCapture(0)
-
-# ------------------------------
-# Stop Meeting
-# ------------------------------
-if stop and st.session_state.running:
-    st.session_state.running = False
-    if st.session_state.cap:
-        st.session_state.cap.release()
-        st.session_state.cap = None
-
-    session_id = st.session_state.session_id
-    attendance = st.session_state.attendance
-    csv_file = f"attendance_{session_id}.csv"
-
-    with open(csv_file, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["Student ID", "Name", "Status", "Time"])
-        for sid, info in attendance.items():
-            writer.writerow([sid, info["name"], info["status"], info["time"]])
-
-    st.success(f"CSV Saved: {csv_file}")
-
-# ------------------------------
-# Attendance Function
-# ------------------------------
-def mark_attendance(student_info):
-    sid, name = student_info.split("_", 1)
-    attendance = st.session_state.attendance
-    if sid not in attendance or attendance[sid]["status"] != "Absent":
+def mark_attendance(student_folder):
+    """Mark a detected student as Present or Late."""
+    parts = student_folder.split("_")
+    if len(parts) < 3:
         return
 
-    now = datetime.now()
-    status = "Present" if now <= st.session_state.late_deadline else "Late"
-    attendance[sid]["status"] = status
-    attendance[sid]["time"] = now.strftime("%H:%M:%S")
+    sid = parts[0]
+    name = parts[1]
+    # chat_id is the last part (handles names with underscores)
+    chat_id = parts[-1]
 
-    # Save to Firebase
-    db.collection("attendance").document(st.session_state.session_id).collection(
-        "students"
-    ).document(sid).set({
-        "name": name,
-        "student_id": sid,
-        "status": status,
-        "timestamp": now,
-    })
+    if sid not in st.session_state.attendance:
+        return
 
-# ------------------------------
-# KPI Cards
-# ------------------------------
-if st.session_state.attendance and not st.session_state.view_history:
-    df = pd.DataFrame.from_dict(st.session_state.attendance, orient="index")
-    total = len(df)
-    present = len(df[df["status"] == "Present"])
-    late = len(df[df["status"] == "Late"])
-    absent = total - present - late
+    record = st.session_state.attendance[sid]
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("👨‍🎓 Total Students", total)
-    c2.metric("✅ Present", present)
-    c3.metric("⏰ Late", late)
-    c4.metric("❌ Absent", absent)
+    # Only update if still Absent
+    if record["status"] == "Absent":
+        now = datetime.now()
+        status = "Present" if now <= st.session_state.late_deadline else "Late"
 
-# ------------------------------
-# Previous Meetings Functions (CSV + Firebase)
-# ------------------------------
-CSV_PATH = "."
+        record["status"] = status
+        record["time"] = now.strftime("%H:%M:%S")
 
-def load_csv_sessions():
-    files = [f for f in os.listdir(CSV_PATH) if f.startswith("attendance_") and f.endswith(".csv")]
-    return files
-
-def load_csv_attendance(file_name):
-    df = pd.read_csv(os.path.join(CSV_PATH, file_name))
-    return df
-
-def plot_attendance_charts(df):
-    status_counts = df["Status"].value_counts()
-
-    c1, c2 = st.columns(2)
-    with c1:
-        st.subheader("🥧 Attendance Distribution")
-        fig1, ax1 = plt.subplots()
-        ax1.pie(status_counts, labels=status_counts.index, autopct="%1.0f%%", startangle=90)
-        st.pyplot(fig1)
-
-    with c2:
-        st.subheader("📊 Attendance Bar Chart")
-        st.bar_chart(status_counts)
-
-    st.subheader("📈 Attendance Trend")
-    trend_df = df.groupby("Status").size().reset_index(name="Count")
-    st.line_chart(trend_df.set_index("Status"))
-
-# ------------------------------
-# Main Layout
-# ------------------------------
-if st.session_state.view_history:
-    # Only show previous meeting analytics
-    st.subheader("📊 Previous Meeting Analytics")
-    csv_sessions = load_csv_sessions()
-    firebase_sessions = [s.id for s in db.collection("attendance").stream()]
-    all_sessions = sorted(list(set(csv_sessions + firebase_sessions)))
-
-    if all_sessions:
-        selected_session = st.selectbox("Select Meeting Session", all_sessions)
-
-        if selected_session.endswith(".csv"):
-            df = load_csv_attendance(selected_session)
-        else:
-            # Firebase session
-            students = db.collection("attendance").document(selected_session).collection("students").stream()
-            data_list = []
-            for s in students:
-                d = s.to_dict()
-                data_list.append({
-                    "Student ID": d["student_id"],
-                    "Name": d["name"],
-                    "Status": d["status"],
-                    "Time": d["timestamp"]
+        # Firebase update
+        try:
+            db.collection("attendance").document(st.session_state.session_id)\
+                .collection("students").document(sid).set({
+                    "name": name,
+                    "status": status,
+                    "timestamp": now,
                 })
-            df = pd.DataFrame(data_list)
+        except Exception as e:
+            print(f"Firebase error for {sid}: {e}")
 
-        if not df.empty:
-            st.dataframe(df, use_container_width=True)
-            plot_attendance_charts(df)
+        # If they arrived late, notify immediately
+        if status == "Late" and not record["notified"]:
+            message = (
+                f"⚠️ *Late Entry Detected*\n\n"
+                f"👤 Name: {record['name']}\n"
+                f"🆔 ID: {sid}\n"
+                f"📌 Status: Late\n"
+                f"🕐 Time: {record['time']}\n"
+                f"📚 Session: {st.session_state.session_id}\n\n"
+                f"Please join immediately."
+            )
+            send_telegram_message(record["chat_id"], message)
+            record["notified"] = True
+
+
+# ------------------------------
+# Late Detection & Notification
+# ------------------------------
+def check_and_notify_late_absent():
+    """
+    After the deadline, mark remaining Absent students as Late
+    and send Telegram notifications ONCE per student.
+    """
+    now = datetime.now()
+    if st.session_state.late_deadline is None:
+        return
+    if now <= st.session_state.late_deadline:
+        return  # Deadline not passed yet
+
+    for sid, info in st.session_state.attendance.items():
+        # Only act on students who are still Absent and not yet notified
+        if info["status"] == "Absent" and not info["notified"]:
+            info["status"] = "Late"
+            info["time"] = now.strftime("%H:%M:%S")
+            info["notified"] = True  # Set BEFORE sending to prevent double-send
+
+            message = (
+                f"🚨 *Absence Alert*\n\n"
+                f"👤 Name: {info['name']}\n"
+                f"🆔 ID: {sid}\n"
+                f"📌 Status: Absent / Late\n"
+                f"🕐 Deadline Passed: {st.session_state.late_deadline.strftime('%H:%M:%S')}\n"
+                f"📚 Session: {st.session_state.session_id}\n\n"
+                f"You have been marked Late. Please join immediately."
+            )
+
+            success = send_telegram_message(info["chat_id"], message)
+
+            # Firebase update
+            try:
+                db.collection("attendance").document(st.session_state.session_id)\
+                    .collection("students").document(sid).set({
+                        "name": info["name"],
+                        "status": "Late",
+                        "timestamp": now,
+                    })
+            except Exception as e:
+                print(f"Firebase error for {sid}: {e}")
+
+            st.toast(
+                f"{'✅' if success else '❌'} Telegram {'sent' if success else 'FAILED'} → {info['name']}",
+                icon="📩",
+            )
+
+
+# ------------------------------
+# Start Session
+# ------------------------------
+if start:
+    if not selected_students:
+        st.sidebar.error("Please select at least one student.")
     else:
-        st.info("No previous sessions found.")
+        st.session_state.running = True
+        st.session_state.start_time = datetime.now()
+        st.session_state.late_deadline = datetime.now() + timedelta(minutes=late_minutes)
+        st.session_state.session_id = (
+            f"{course_code}_{datetime.now().strftime('%Y-%m-%d_%H-%M')}"
+        )
 
-else:
-    # Show live camera + attendance table only when not viewing history
-    left, right = st.columns([2, 1])
-    frame_window = None
+        temp = {}
+        for s in selected_students:
+            parts = s.split("_")
+            if len(parts) >= 3:
+                sid = parts[0]
+                name = parts[1]
+                chat_id = parts[-1]  # last part = chat_id (safe for names with _)
+                temp[sid] = {
+                    "name": name,
+                    "chat_id": chat_id,
+                    "status": "Absent",
+                    "time": "--",
+                    "notified": False,
+                }
 
-    with left:
-        st.subheader("📷 Live Camera Feed")
-        frame_window = st.empty()
+        st.session_state.attendance = temp
 
-    with right:
-        st.subheader("📊 Attendance Table")
-        if st.session_state.attendance:
-            df = pd.DataFrame.from_dict(st.session_state.attendance, orient="index")
-            st.dataframe(df, use_container_width=True)
+        # Release any old capture
+        if st.session_state.cap is not None:
+            st.session_state.cap.release()
+        st.session_state.cap = cv2.VideoCapture(0)
 
-    # ------------------------------
-    # Face Recognition Loop
-    # ------------------------------
-    if st.session_state.running:
-        cap = st.session_state.cap
+        st.sidebar.success(f"Session started: {st.session_state.session_id}")
+
+# ------------------------------
+# Stop Session
+# ------------------------------
+if stop:
+    st.session_state.running = False
+    if st.session_state.cap is not None:
+        st.session_state.cap.release()
+        st.session_state.cap = None
+    st.sidebar.info("Session stopped.")
+
+# ------------------------------
+# UI Placeholders
+# ------------------------------
+frame_window = st.empty()
+status_bar = st.empty()
+table_window = st.empty()
+
+# ------------------------------
+# MAIN LOOP
+# ------------------------------
+if st.session_state.running:
+    cap = st.session_state.cap
+
+    if cap is None or not cap.isOpened():
+        st.error("❌ Camera not accessible. Please restart the session.")
+        st.session_state.running = False
+    else:
         ret, frame = cap.read()
+
         if ret:
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            boxes = face_recognition.face_locations(rgb)
+            boxes = face_recognition.face_locations(rgb, model="hog")
             encodings = face_recognition.face_encodings(rgb, boxes)
 
             for encoding, box in zip(encodings, boxes):
-                matches = face_recognition.compare_faces(data["encodings"], encoding, tolerance=0.45)
-                name = "Unknown"
+                matches = face_recognition.compare_faces(
+                    data["encodings"], encoding, tolerance=0.45
+                )
+                matched_name = "Unknown"
 
                 if True in matches:
-                    matched_idxs = [i for (i, b) in enumerate(matches) if b]
+                    matched_idxs = [i for i, b in enumerate(matches) if b]
                     counts = {}
                     for i in matched_idxs:
-                        name = data["names"][i]
-                        counts[name] = counts.get(name, 0) + 1
-                    name = max(counts, key=counts.get)
-                    mark_attendance(name)
+                        n = data["names"][i]
+                        counts[n] = counts.get(n, 0) + 1
+                    matched_name = max(counts, key=counts.get)
+                    mark_attendance(matched_name)
 
-                top, right, bottom, left = box
-                cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
-                cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                top, r, bottom, l = box
+                color = (0, 255, 0) if matched_name != "Unknown" else (0, 0, 255)
+                cv2.rectangle(frame, (l, top), (r, bottom), color, 2)
+                cv2.putText(
+                    frame,
+                    matched_name,
+                    (l, top - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    color,
+                    2,
+                )
 
             frame_window.image(frame, channels="BGR")
-        time.sleep(0.1)
+        else:
+            st.warning("⚠️ Could not read frame from camera.")
+
+        # ------------------------------
+        # Check late / absent notifications
+        # ------------------------------
+        check_and_notify_late_absent()
+
+        # ------------------------------
+        # Status bar
+        # ------------------------------
+        now = datetime.now()
+        deadline = st.session_state.late_deadline
+        if deadline and now <= deadline:
+            remaining = int((deadline - now).total_seconds())
+            status_bar.info(
+                f"⏱️ Session: `{st.session_state.session_id}` | "
+                f"Late deadline in: **{remaining}s**"
+            )
+        else:
+            status_bar.warning(
+                f"⏰ Session: `{st.session_state.session_id}` | "
+                f"Late deadline **passed** at {deadline.strftime('%H:%M:%S') if deadline else '--'}"
+            )
+
+        # ------------------------------
+        # Attendance Table
+        # ------------------------------
+        if st.session_state.attendance:
+            df = pd.DataFrame.from_dict(
+                st.session_state.attendance, orient="index"
+            )[["name", "status", "time", "notified"]]
+            df.index.name = "Student ID"
+
+            def color_status(val):
+                if val == "Present":
+                    return "background-color: #d4edda; color: #155724"
+                elif val == "Late":
+                    return "background-color: #fff3cd; color: #856404"
+                elif val == "Absent":
+                    return "background-color: #f8d7da; color: #721c24"
+                return ""
+
+            styled = df.style.applymap(color_status, subset=["status"])
+            table_window.dataframe(styled, use_container_width=True)
+
+        time.sleep(0.5)
         st.rerun()
+
+elif not st.session_state.running and st.session_state.attendance:
+    # Show final table after session stops
+    st.subheader("📋 Final Attendance Report")
+    df = pd.DataFrame.from_dict(st.session_state.attendance, orient="index")[
+        ["name", "status", "time"]
+    ]
+    df.index.name = "Student ID"
+    st.dataframe(df, use_container_width=True)
+
+    present = sum(1 for v in st.session_state.attendance.values() if v["status"] == "Present")
+    late = sum(1 for v in st.session_state.attendance.values() if v["status"] == "Late")
+    absent = sum(1 for v in st.session_state.attendance.values() if v["status"] == "Absent")
+    total = len(st.session_state.attendance)
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total", total)
+    c2.metric("✅ Present", present)
+    c3.metric("⚠️ Late", late)
+    c4.metric("❌ Absent", absent)
