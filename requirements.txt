@@ -4,4 +4,4 @@ firebase-admin
 streamlit
 pandas
 numpy
-pickle
+plotly
