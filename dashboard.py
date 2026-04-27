@@ -453,7 +453,16 @@ def mark_attendance(student_folder):
         ).document(sid).set({"name": name, "status": status, "timestamp": now})
     except Exception as e:
         print(f"Firebase error for {sid}: {e}")
-    if status == "Late" and not record["notified"]:
+    if status == "Present" and not record["notified"]:
+        record["notified"] = True
+        msg = (
+            f"✅ *Attendance Confirmed*\n\n"
+            f"👤 Name: {record['name']}\n🆔 ID: {sid}\n"
+            f"📌 Status: Present\n🕐 Time: {record['time']}\n"
+            f"📚 Session: {st.session_state.session_id}\n\nThank you for joining."
+        )
+        send_telegram_message(record["chat_id"], msg)
+    elif status == "Late" and not record["notified"]:
         record["notified"] = True
         msg = (
             f"⚠️ *Late Entry Detected*\n\n"
@@ -550,6 +559,33 @@ if stop:
     if st.session_state.cap is not None:
         st.session_state.cap.release()
         st.session_state.cap = None
+    
+    # ── MARK FINAL ABSENTEES & NOTIFY ──
+    absent_targets = []
+    now = datetime.now()
+    if st.session_state.attendance:
+        for sid, info in st.session_state.attendance.items():
+            if info["time"] == "--" or info["status"] == "Late":
+                info["status"] = "Absent"
+                info["time"] = "--"
+                msg = (
+                    f"❌ *Final Attendance Alert: ABSENT*\n\n"
+                    f"👤 Name: {info['name']}\n🆔 ID: {sid}\n"
+                    f"📌 Status: Absent\n"
+                    f"📚 Session: {st.session_state.session_id}\n\nYou have been marked Absent for this session."
+                )
+                absent_targets.append({"chat_id": info["chat_id"], "message": msg})
+                try:
+                    db.collection("attendance").document(st.session_state.session_id).collection(
+                        "students"
+                    ).document(sid).update({"status": "Absent", "timestamp": now})
+                except Exception as e:
+                    print(f"Firebase final absent error for {sid}: {e}")
+        
+        if absent_targets:
+            send_telegram_to_many(absent_targets)
+            st.toast(f"📢 Sent {len(absent_targets)} Absence Alerts", icon="🚨")
+
     st.sidebar.info("Session terminated.")
 
 # ──────────────────────────────────────────────
