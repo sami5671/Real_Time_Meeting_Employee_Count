@@ -46,6 +46,15 @@ for s in students:
         "time": "",
     }
 
+# Write session metadata
+db.collection("attendance").document(session_id).set({
+    "session_id": session_id,
+    "course": course,
+    "start_time": start_time,
+    "end_time": end_time,
+    "created_at": firestore.SERVER_TIMESTAMP
+})
+
 
 def mark_attendance(student_info):
 
